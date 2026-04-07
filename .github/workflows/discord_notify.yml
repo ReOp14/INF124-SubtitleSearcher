@@ -1,0 +1,104 @@
+name: Discord Notification
+
+# Trigger on push, pull request, branch creation/deletion, and release
+on: 
+  push:
+  pull_request:
+    types: [opened, closed, reopened]
+  delete:
+  create:
+  release:
+    types: [published]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Discord Notification
+        env:
+          DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1491215781088985279/XbU7x6hy8vDTreT2f1RGb4cqWMupspUvYLkFLdmGl9RQwOILpqeePdo7w-camY56BGuw"
+          DISCORD_USERNAME: "Subtitle Searcher"
+          DISCORD_AVATAR: "https://i.imgur.com/Dr6Ln1e.png"
+        run: |
+          # 1. Setup Common Variables
+          TIMESTAMP=$(TZ="America/Los_Angeles" date +'%b %d, %Y at %I:%M:%S %p')
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+          EVENT_TYPE="${{ github.event_name }}"
+          ACTOR="${{ github.actor }}"
+          
+          # Initialize variables to avoid empty values
+          TITLE=""
+          DESCRIPTION=""
+          URL=""
+          COLOR=2336336 # Default Blue
+
+          # 2. Logic to handle different events
+          if [ "$EVENT_TYPE" == "push" ]; then
+            REF_NAME="${{ github.ref_name }}"
+            COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -n 1 | sed 's/"/\\"/g')
+            
+            TITLE="Pushed to $REF_NAME"
+            DESCRIPTION="$COMMIT_MSG"
+            URL="${{ github.event.head_commit.url }}"
+            COLOR=3447003 # Blue
+
+          elif [ "$EVENT_TYPE" == "pull_request" ]; then
+            ACTION="${{ github.event.action }}"
+            PR_TITLE=$(echo "${{ github.event.pull_request.title }}" | sed 's/"/\\"/g')
+            PR_NUM="${{ github.event.number }}"
+            
+            TITLE="Pull Request $ACTION (#$PR_NUM)"
+            DESCRIPTION="$PR_TITLE"
+            URL="${{ github.event.pull_request.html_url }}"
+            
+            if [ "$ACTION" == "merged" ]; then
+              COLOR=5763719 # Purple
+            elif [ "$ACTION" == "closed" ]; then
+              COLOR=15548997 # Red
+            else
+              COLOR=5763719 # Greenish
+            fi
+
+          elif [ "$EVENT_TYPE" == "delete" ]; then
+            REF_TYPE="${{ github.event.ref_type }}"
+            REF="${{ github.event.ref }}"
+            
+            TITLE="Deleted $REF_TYPE: $REF"
+            DESCRIPTION="Branch or Tag deleted by $ACTOR"
+            URL="https://github.com/${{ github.repository }}"
+            COLOR=15158332 # Red
+
+          elif [ "$EVENT_TYPE" == "release" ]; then
+            RELEASE_NAME="${{ github.event.release.name }}"
+            
+            TITLE="New Release Published"
+            DESCRIPTION="$RELEASE_NAME"
+            URL="${{ github.event.release.html_url }}"
+            COLOR=16776960 # Gold
+          fi
+
+          # 3. fallback for description sanitization (Handle newlines/quotes safely)
+          DESCRIPTION=$(echo "$DESCRIPTION" | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+
+          # 4. send the Payload
+          curl -H "Content-Type: application/json" \
+               -d "{
+                     \"username\": \"$DISCORD_USERNAME\",
+                     \"avatar_url\": \"$DISCORD_AVATAR\",
+                     \"content\": \"Update on \`$REPO_NAME\` ($EVENT_TYPE)\",
+                     \"embeds\": [{
+                       \"color\": $COLOR,
+                       \"author\": {
+                         \"name\": \"$ACTOR\",
+                         \"url\": \"https://github.com/$ACTOR\",
+                         \"icon_url\": \"https://github.com/$ACTOR.png\"
+                       },
+                       \"title\": \"$TITLE\",
+                       \"url\": \"$URL\",
+                       \"description\": \"$DESCRIPTION\",
+                       \"footer\": {
+                         \"text\": \"$TIMESTAMP\"
+                       }
+                     }]
+                   }" \
+               "$DISCORD_WEBHOOK"
