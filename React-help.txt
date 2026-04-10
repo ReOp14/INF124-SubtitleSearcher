@@ -1,3 +1,8 @@
+First time running the react project:
+cd subtitlesearcher
+npm install
+Note: Do not do "npm audit fix", it will break things.
+
 Start the react website:
 cd subtitlesearcher
 npm start 
