@@ -15,10 +15,9 @@ PASSWORD = os.getenv("OS_PASSWORD")
 USER_AGENT = os.getenv("OS_USER_AGENT")
 RATE_LIMIT_DELAY = 2.0 
 
-# print("API_KEY:", API_KEY)
-# print("USERNAME:", USERNAME)
-# print("PASSWORD:", PASSWORD)
-# print("USER_AGENT:", USER_AGENT)
+# Define and create a local directory for subtitles
+DOWNLOAD_DIR = "downloads"
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 # Global state for caching the JWT Token
 jwt_token = None
@@ -78,7 +77,7 @@ async def authenticate(client: httpx.AsyncClient):
     data = resp.json()
     return data.get("token")
 
-async def fetch_subtitle_sample(query: str, sample_lines: int = 15):
+async def download_subtitle_file(query: str):
     global jwt_token
     
     headers = {
@@ -136,19 +135,28 @@ async def fetch_subtitle_sample(query: str, sample_lines: int = 15):
             
         dl_data = dl_resp.json()
         link = dl_data.get("link")
+        
         if not link:
             raise Exception("Failed to get download link.")
+            
+        # Determine file name from API response, fallback to <file_id>.srt
+        raw_file_name = dl_data.get("file_name") or f"{file_id}.srt"
+        # Sanitize file name to prevent directory traversal
+        file_name = os.path.basename(raw_file_name) 
             
         # 4. Download the actual subtitle file content
         sub_resp = await client.get(link)
         if sub_resp.status_code != 200:
             raise Exception("Failed to download the subtitle file.")
             
-        # 5. Parse the text and return a sample
-        text = sub_resp.text
-        lines = text.splitlines()
-        sample = "\n".join(lines[:sample_lines])
-        return sample
+        # 5. Save the file to the local directory
+        file_path = os.path.join(DOWNLOAD_DIR, file_name)
+        
+        # We use "wb" (write binary) to ensure text encoding is preserved correctly
+        with open(file_path, "wb") as f:
+            f.write(sub_resp.content)
+            
+        return file_path
 
 @app.get("/")
 async def root():
@@ -157,15 +165,17 @@ async def root():
 @app.get("/api/subtitles")
 async def get_subtitles(query: str):
     try:
-        sample = await request_queue.enqueue(fetch_subtitle_sample, query)
+        # Enqueue the task
+        saved_file_path = await request_queue.enqueue(download_subtitle_file, query)
+        
         return {
             "status": "success",
             "query": query,
-            "sample": sample
+            "saved_to": saved_file_path
         }
     except Exception as e:
         print("\n" + "="*50)
-        print("ERROR FETCHING SUBTITLES:")
+        print("ERROR DOWNLOADING SUBTITLES:")
         traceback.print_exc()
         print("="*50 + "\n")
         raise HTTPException(status_code=500, detail=str(e))
