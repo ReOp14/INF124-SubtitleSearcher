@@ -6,6 +6,12 @@ env/
 # Credentials
 .env
 
+# Node
+node_modules/
+
+# Local vector indices / caches
+data/
+
 # Python Cache
 __pycache__/
 *.pyc

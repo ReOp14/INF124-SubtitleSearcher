@@ -18,24 +18,23 @@ Optional Step 4: (if desiring to build)
 cd react-subtitlesearcher
 npm run build
 
-## To run the backend:
-Step 1:
-(Windows)
+## To run the backend (Node.js):
+Requires [Node.js 18+](https://nodejs.org/) (includes `fetch`).
+
+Step 1: Copy environment variables
 cd api-subtitlesearcher
-python -m venv venv
-venv/Scripts/activate
+Copy `.env.example` to `.env` and fill in your OpenSubtitles API credentials (`OS_API_KEY`, `OS_USERNAME`, `OS_PASSWORD`, `OS_USER_AGENT`).
 
-(Linux)
-cd api-subtitlesearcher
-python3 -m venv venv
-source venv/bin/activate
+Step 2: Install dependencies (first time only)
+npm install
 
-Step 2:
-pip install -r requirements.txt
+Step 3: Start the API server
+npm start
 
-Step 3: (start server)
-uvicorn main:app --host 0.0.0.0 --port 8000
+Optional: during development you can use `npm run dev` to restart automatically when files change (Node `--watch`).
 
-Step 4:
-http://localhost:8000/ -> Should show a home page for the API
-http://localhost:8000/api/subtitles?query=Inception -> Test Query
+Step 4: Verify
+http://localhost:8000/ — should return JSON with a welcome message for the API  
+http://localhost:8000/api/subtitles?query=Inception — sample subtitle lines (requires valid `.env` credentials)
+
+The server listens on `0.0.0.0` and port `8000` by default. Override the port with `PORT` in `.env` or the environment if needed.
