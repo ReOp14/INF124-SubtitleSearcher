@@ -1,25 +1,19 @@
 # Subtitle Searcher API — testing guide
-
-This document describes how to **run the backend locally** and **try each HTTP endpoint**. The server lives in this folder (`api-subtitlesearcher`).
+# - How to run the backend locally
+# - Example of running each HTTP endpoint
 
 ## Prerequisites
-
 1. **Node.js** 18 or newer (the `vectra` package may recommend a newer Node version; upgrade if you see engine warnings).
 2. **Dependencies** installed:
-
    ```powershell
    cd c:\Git\INF124-SubtitleSearcher\api-subtitlesearcher
    npm install
    ```
-
 3. **Environment variables** in `.env` (same variables the app already expects):
-
    - `OS_API_KEY` — OpenSubtitles API key  
    - `OS_USERNAME` / `OS_PASSWORD` — OpenSubtitles.com account  
    - `OS_USER_AGENT` — required string, e.g. `MyApp 1.0`  
-
    Optional tuning:
-
    - `PORT` — listen port (default **8000**)
    - `OS_RATE_LIMIT_DELAY_MS` — delay between queued OpenSubtitles calls (default **2000**)
    - `MEDIA_SUBTITLE_MAX_FILES` — default cap for bulk ZIP (default **60**)
@@ -29,24 +23,16 @@ This document describes how to **run the backend locally** and **try each HTTP e
    - `QUOTE_INDEX_DIR` — where vector indices are stored (default `data/quote-indices` under the process working directory)
 
 ## Start the server
-
 From this directory:
-
 ```powershell
 cd c:\Git\INF124-SubtitleSearcher\api-subtitlesearcher
 npm start
 ```
-
 Or with auto-restart on file changes:
-
 ```powershell
 npm run dev
 ```
-
-Default base URL: **`http://localhost:8000`** (or your `PORT`).
-
-On Windows, use **`curl.exe`** so you do not hit PowerShell’s `Invoke-WebRequest` alias for `curl`.
-
+Default base URL: **`http://localhost:8000`**.
 ---
 
 ## Endpoints overview
@@ -62,29 +48,11 @@ OpenSubtitles search parameters for TV episodes are documented in the REST docs:
 [Search for subtitles (OpenSubtitles API)](https://opensubtitles.stoplight.io/docs/opensubtitles-api/a172317bd5ccc-search-for-subtitles).
 
 ---
-
 ## 1. Root — `GET /`
-
-**Try it**
-
-```powershell
-curl.exe -s "http://localhost:8000/"
-```
-
-**PowerShell (JSON pretty-print optional)**
-
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8000/" | ConvertTo-Json
-```
-
-**Expected:** JSON with `message` and `endpoints` hints.
-
 ---
 
 ## 2. Subtitle sample — `GET /api/subtitles`
-
 Returns a small **plain-text preview** (first lines) of one matching English subtitle from OpenSubtitles.
-
 ### Query parameters
 
 | Name | Required | Description |
@@ -101,15 +69,9 @@ curl.exe -s "http://localhost:8000/api/subtitles?query=Inception"
 curl.exe -s "http://localhost:8000/api/subtitles?query=Breaking%20Bad"
 ```
 
-(URL-encode spaces as `%20`, or quote the whole URL in PowerShell.)
-
-**Expected:** `200` with `status`, `query`, and `sample` (string).  
-**Errors:** `422` if `query` is missing; `500` with `detail` if OpenSubtitles or parsing fails.
-
 ---
 
 ## 3. Bulk download ZIP — `GET /api/media/subtitles.zip`
-
 Streams a **ZIP** of subtitle files. The server deduplicates by OpenSubtitles `file_id`, paginates search results, and respects a **maximum file count**.
 
 ### Query parameters
@@ -140,15 +102,6 @@ curl.exe -s -o "Inception.subtitles.zip" "http://localhost:8000/api/media/subtit
 curl.exe -s -o "episode.zip" "http://localhost:8000/api/media/subtitles.zip?query=Breaking%20Bad&season_number=1&episode_number=1&languages=en&max_files=10"
 ```
 
-**PowerShell download**
-
-```powershell
-Invoke-WebRequest -Uri "http://localhost:8000/api/media/subtitles.zip?query=Inception&languages=en&max_files=5" -OutFile "Inception.subtitles.zip"
-```
-
-**Expected:** `200` with `Content-Type: application/zip` and a downloadable archive.  
-**Errors:** `422` without `query`; `404` if no files; `500` on server/OpenSubtitles errors.
-
 **Note:** Each file inside the ZIP may take time because downloads are **rate-limited** in the backend.
 
 ---
@@ -172,25 +125,21 @@ Builds or reuses a **local vector index** (Vectra + local embeddings) over subti
 ### Examples
 
 **Movie**
-
 ```powershell
 curl.exe -s "http://localhost:8000/api/quotes/similar?media=Inception&quote=We%20need%20to%20go%20deeper&limit=5"
 ```
 
 **TV (narrow to one episode for faster, smaller index)**
-
 ```powershell
 curl.exe -s "http://localhost:8000/api/quotes/similar?media=Breaking%20Bad&season_number=1&episode_number=1&quote=I%20am%20awake&limit=5"
 ```
 
 **Force re-index**
-
 ```powershell
 curl.exe -s "http://localhost:8000/api/quotes/similar?media=Inception&quote=dream&refresh=1&limit=5"
 ```
 
 **Expected:** `200` with:
-
 - `media`, `quote`
 - `index`: `cache_key`, `cues_indexed`, `subtitle_files`, `rebuilt`
 - `matches`: array of objects with `score`, `timestamp_start`, `timestamp_end`, `timestamp_start_ms`, `timestamp_end_ms`, `episode`, `text`
@@ -198,17 +147,13 @@ curl.exe -s "http://localhost:8000/api/quotes/similar?media=Inception&quote=drea
 **Errors:** `422` if `media` or `quote` is missing; `500` with `detail` on failure.
 
 ### First-run behavior
-
 - The **first** request may take noticeably longer: downloading the embedding model, fetching subtitles, parsing SRT, and building the index.
 - Later requests with the **same** index key reuse `data/quote-indices/` (unless `refresh` is set).
 
 ---
-
 ## Quick troubleshooting
-
 | Symptom | Things to check |
 |--------|-------------------|
 | `Missing credentials` | `.env` has `OS_API_KEY`, `OS_USERNAME`, `OS_PASSWORD`, `OS_USER_AGENT`. |
 | Very slow responses | OpenSubtitles queue delay (`OS_RATE_LIMIT_DELAY_MS`) and many `max_files` / large index builds. |
 | Quote search out of memory / very large index | Lower `max_subtitle_files` or narrow with `season_number` / `episode_number`. |
-| `curl` weird errors on Windows | Use **`curl.exe`**, not PowerShell’s `curl` alias. |

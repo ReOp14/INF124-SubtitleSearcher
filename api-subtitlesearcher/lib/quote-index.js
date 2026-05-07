@@ -6,6 +6,9 @@ import { LocalIndex } from 'vectra';
 import { collectSubtitleFiles, safeFilenamePart } from './media-subtitles.js';
 import { parseSrt, formatSrtTime } from './srt.js';
 import { embedText, embedTexts } from './embeddings.js';
+import { createLogger } from './logger.js';
+
+const logger = createLogger({ app: 'api-subtitlesearcher' });
 
 /**
  * @param {object} params
@@ -45,12 +48,15 @@ async function buildIndexFromSubtitles(searchParams, files, ctx) {
     path.join(process.cwd(), 'data', 'quote-indices');
   const key = indexCacheKey(searchParams);
   const folder = indexFolder(baseDir, key);
+  logger.info('quote_index.folder_ready', { folder, key });
   await mkdir(folder, { recursive: true });
 
   const index = new LocalIndex(folder);
   if (await index.isIndexCreated()) {
+    logger.info('quote_index.delete_existing', { folder, key });
     await index.deleteIndex();
   }
+  logger.info('quote_index.create', { folder, key });
   await index.createIndex({ version: 1 });
 
   /** @type {{ id: string, vector: number[], metadata: Record<string, string | number> }[]} */
@@ -58,15 +64,37 @@ async function buildIndexFromSubtitles(searchParams, files, ctx) {
   const textsForBatch = [];
 
   let cueCount = 0;
+  let downloadedFiles = 0;
+  let parsedFiles = 0;
+  /** @type {{ fileId: number, episodeLabel?: string, message: string }[]} */
+  const downloadFailures = [];
 
   for (const f of files) {
     let raw;
     try {
+      logger.info('quote_index.subtitle_download_start', {
+        fileId: f.fileId,
+        episodeLabel: f.episodeLabel,
+        releaseName: f.releaseName,
+      });
       raw = await client.downloadSubtitleText(f.fileId);
-    } catch {
+      downloadedFiles += 1;
+      logger.info('quote_index.subtitle_download_ok', {
+        fileId: f.fileId,
+        bytes: Buffer.byteLength(raw, 'utf8'),
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      logger.warn('quote_index.subtitle_download_failed', {
+        fileId: f.fileId,
+        episodeLabel: f.episodeLabel,
+        message,
+      });
+      downloadFailures.push({ fileId: f.fileId, episodeLabel: f.episodeLabel, message });
       continue;
     }
     const cues = parseSrt(raw);
+    parsedFiles += 1;
     const ep = safeFilenamePart(f.episodeLabel);
 
     for (let i = 0; i < cues.length; i++) {
@@ -88,13 +116,42 @@ async function buildIndexFromSubtitles(searchParams, files, ctx) {
     }
   }
 
+  if (downloadedFiles === 0) {
+    const hint =
+      downloadFailures.some((f) => /quota|download.*limit|too many/i.test(f.message))
+        ? ' (likely OpenSubtitles download quota exceeded)'
+        : '';
+    throw new Error(
+      `All subtitle downloads failed${hint}. Tried ${files.length} file(s). Last error: ${
+        downloadFailures.at(-1)?.message ?? 'unknown error'
+      }`,
+    );
+  }
+
+  if (cueCount === 0) {
+    throw new Error(
+      `No subtitle cues were parsed (downloaded ${downloadedFiles}/${files.length}, parsed ${parsedFiles}). Refusing to cache an empty quote index.`,
+    );
+  }
+
+  logger.info('quote_index.embedding_start', {
+    key,
+    folder,
+    subtitle_files_total: files.length,
+    subtitle_files_downloaded: downloadedFiles,
+    subtitle_files_parsed: parsedFiles,
+    cues_total: cueCount,
+  });
   const vectors = await embedTexts(textsForBatch, 24);
+  logger.info('quote_index.embedding_done', { key, vectors: vectors.length });
   for (let i = 0; i < batch.length; i++) {
     batch[i].vector = vectors[i];
   }
 
   if (batch.length > 0) {
+    logger.info('quote_index.insert_start', { key, items: batch.length });
     await index.batchInsertItems(batch);
+    logger.info('quote_index.insert_done', { key, items: batch.length });
   }
 
   /** @type {Manifest} */
@@ -105,6 +162,12 @@ async function buildIndexFromSubtitles(searchParams, files, ctx) {
     fileCount: files.length,
     updatedAt: Date.now(),
   };
+  logger.info('quote_index.manifest_write', {
+    key,
+    path: path.join(folder, 'manifest.json'),
+    cueCount,
+    fileCount: files.length,
+  });
   await writeFile(path.join(folder, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
 
   return { folder, key, manifest };
@@ -171,14 +234,23 @@ export async function ensureQuoteIndex(opts) {
       const raw = await readFile(manifestPath, 'utf8');
       const manifest = /** @type {Manifest} */ (JSON.parse(raw));
       const idx = new LocalIndex(folder);
-      if (manifestMatches(searchParams, manifest) && (await idx.isIndexCreated())) {
+      if (
+        manifest.cueCount > 0 &&
+        manifestMatches(searchParams, manifest) &&
+        (await idx.isIndexCreated())
+      ) {
+        logger.info('quote_index.cache_hit', { key, folder });
         return { folder, key, manifest, rebuilt: false };
+      }
+      if (manifestMatches(searchParams, manifest) && manifest.cueCount === 0) {
+        logger.warn('quote_index.cache_invalid_empty', { key, folder });
       }
     } catch {
       /* build */
     }
   }
 
+  logger.info('quote_index.cache_miss', { key, folder, forceRebuild });
   const files = await collectSubtitleFiles(client, {
     query,
     languages,
@@ -200,6 +272,28 @@ export async function ensureQuoteIndex(opts) {
 }
 
 /**
+ * Deduplicate by exact `text` match, keeping the best-scoring instance.
+ * @param {ReturnType<typeof searchSimilarQuotes> extends Promise<infer T> ? T : never} matches
+ * @param {number} limit
+ */
+function dedupeMatchesByText(matches, limit) {
+  /** @type {Map<string, any>} */
+  const bestByText = new Map();
+  for (const m of matches) {
+    const key = String(m.text ?? '');
+    if (!bestByText.has(key)) {
+      bestByText.set(key, m);
+      continue;
+    }
+    const prev = bestByText.get(key);
+    if (Number(m.score) > Number(prev.score)) {
+      bestByText.set(key, m);
+    }
+  }
+  return [...bestByText.values()].sort((a, b) => Number(b.score) - Number(a.score)).slice(0, limit);
+}
+
+/**
  * @param {object} opts
  * @param {string} opts.folder
  * @param {string} opts.quote
@@ -212,9 +306,13 @@ export async function searchSimilarQuotes(opts) {
     throw new Error('Quote index is missing.');
   }
   const qv = await embedText(quote);
-  const results = await index.queryItems(qv, quote, limit, undefined, false);
+  // Pull extra so we can dedupe by exact `text` while still returning up to `limit`.
+  const requested = Math.max(1, Math.min(limit, 50));
+  const fetchN = Math.min(Math.max(requested * 5, requested), 200);
+  logger.info('quote_search.query', { folder, requested_limit: requested, fetch: fetchN });
+  const results = await index.queryItems(qv, quote, fetchN, undefined, false);
 
-  return results.map((r) => {
+  const mapped = results.map((r) => {
     const md = r.item.metadata;
     const startMs = Number(md.start_ms);
     const endMs = Number(md.end_ms);
@@ -228,4 +326,12 @@ export async function searchSimilarQuotes(opts) {
       text: String(md.text ?? ''),
     };
   });
+
+  const deduped = dedupeMatchesByText(mapped, requested);
+  logger.info('quote_search.results', {
+    requested_limit: requested,
+    raw: mapped.length,
+    deduped: deduped.length,
+  });
+  return deduped;
 }

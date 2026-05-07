@@ -5,10 +5,11 @@ import express from 'express';
 import { createOpenSubtitlesClient } from './lib/os-client.js';
 import { collectSubtitleFiles, safeFilenamePart } from './lib/media-subtitles.js';
 import { ensureQuoteIndex, searchSimilarQuotes } from './lib/quote-index.js';
+import { createLogger } from './lib/logger.js';
 
 const RATE_LIMIT_DELAY_MS = Number(process.env.OS_RATE_LIMIT_DELAY_MS) || 2000;
 const MEDIA_SUBTITLE_MAX_FILES = Number(process.env.MEDIA_SUBTITLE_MAX_FILES) || 60;
-const QUOTE_SEARCH_MAX_FILES = Number(process.env.QUOTE_SEARCH_MAX_FILES) || 25;
+const QUOTE_SEARCH_MAX_FILES = Number(process.env.QUOTE_SEARCH_MAX_FILES) || 1;
 
 class RateLimitedQueue {
   /**
@@ -53,9 +54,21 @@ class RateLimitedQueue {
 
 const requestQueue = new RateLimitedQueue(RATE_LIMIT_DELAY_MS);
 const osClient = createOpenSubtitlesClient(process.env, requestQueue);
+const logger = createLogger({ app: 'api-subtitlesearcher' });
 
 const app = express();
 app.use(express.json());
+
+app.use((req, _res, next) => {
+  logger.info('http.request', {
+    method: req.method,
+    path: req.path,
+    query: req.query,
+    ip: req.ip,
+    ua: req.headers['user-agent'],
+  });
+  next();
+});
 
 app.get('/', (req, res) => {
   res.json({
@@ -97,6 +110,7 @@ app.get('/api/subtitles', async (req, res) => {
   const q = Array.isArray(query) ? query[0] : query;
 
   try {
+    logger.info('subtitles.sample', { query: String(q) });
     const sample = await osClient.fetchSubtitleSample(String(q));
     res.json({
       status: 'success',
@@ -108,6 +122,7 @@ app.get('/api/subtitles', async (req, res) => {
     console.error('ERROR FETCHING SUBTITLES:', e);
     console.error('='.repeat(50) + '\n');
     const message = e instanceof Error ? e.message : String(e);
+    logger.error('subtitles.sample_error', { query: String(q), message });
     res.status(500).json({ detail: message });
   }
 });
@@ -136,6 +151,17 @@ app.get('/api/media/subtitles.zip', async (req, res) => {
   const tmdb_id = parseOptionalInt(req.query.tmdb_id, undefined);
 
   try {
+    logger.info('subtitles.zip_request', {
+      query: q,
+      languages,
+      maxFiles,
+      season_number,
+      episode_number,
+      parent_imdb_id,
+      parent_tmdb_id,
+      imdb_id,
+      tmdb_id,
+    });
     const files = await collectSubtitleFiles(osClient, {
       query: q,
       languages,
@@ -149,6 +175,7 @@ app.get('/api/media/subtitles.zip', async (req, res) => {
     });
 
     if (files.length === 0) {
+      logger.warn('subtitles.zip_no_files', { query: q, languages });
       return res.status(404).json({ detail: 'No subtitle files found for this query.' });
     }
 
@@ -160,6 +187,7 @@ app.get('/api/media/subtitles.zip', async (req, res) => {
     );
     archive.on('error', (err) => {
       console.error('ZIP error:', err);
+      logger.error('subtitles.zip_error', { query: q, message: err.message });
       if (!res.headersSent) {
         res.status(500).json({ detail: err.message });
       }
@@ -168,22 +196,32 @@ app.get('/api/media/subtitles.zip', async (req, res) => {
 
     for (const f of files) {
       try {
+        logger.info('subtitles.zip_download_start', { query: q, fileId: f.fileId, episodeLabel: f.episodeLabel });
         const text = await osClient.downloadSubtitleText(f.fileId);
         const base = safeFilenamePart(f.episodeLabel);
         const name = `${base}.${languages}.srt`;
         archive.append(text, { name });
+        logger.info('subtitles.zip_download_ok', {
+          query: q,
+          fileId: f.fileId,
+          bytes: Buffer.byteLength(text, 'utf8'),
+          name,
+        });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
+        logger.warn('subtitles.zip_download_failed', { query: q, fileId: f.fileId, message: msg });
         archive.append(`Download failed: ${msg}\n`, {
           name: `_errors/${f.fileId}.txt`,
         });
       }
     }
 
+    logger.info('subtitles.zip_finalize', { query: q, files: files.length });
     await archive.finalize();
   } catch (e) {
     console.error('Bulk subtitle download error:', e);
     const message = e instanceof Error ? e.message : String(e);
+    logger.error('subtitles.zip_fatal', { query: q, message });
     if (!res.headersSent) {
       res.status(500).json({ detail: message });
     }
@@ -210,7 +248,7 @@ app.get('/api/quotes/similar', async (req, res) => {
   const forceRebuild = String(req.query.refresh ?? '') === '1' || String(req.query.refresh ?? '') === 'true';
   const maxSubtitleFiles = Math.min(
     parseOptionalInt(req.query.max_subtitle_files, QUOTE_SEARCH_MAX_FILES) ?? QUOTE_SEARCH_MAX_FILES,
-    Number(process.env.QUOTE_SEARCH_MAX_FILES_CAP) || 80,
+    Number(process.env.QUOTE_SEARCH_MAX_FILES_CAP) || 25,
   );
 
   const season_number = parseOptionalInt(req.query.season_number, undefined);
@@ -221,6 +259,20 @@ app.get('/api/quotes/similar', async (req, res) => {
   const tmdb_id = parseOptionalInt(req.query.tmdb_id, undefined);
 
   try {
+    logger.info('quote_search.request', {
+      media: m,
+      quote: q,
+      languages,
+      limit,
+      forceRebuild,
+      maxSubtitleFiles,
+      season_number,
+      episode_number,
+      parent_imdb_id,
+      parent_tmdb_id,
+      imdb_id,
+      tmdb_id,
+    });
     const { folder, key, manifest, rebuilt } = await ensureQuoteIndex({
       client: osClient,
       query: m,
@@ -237,6 +289,12 @@ app.get('/api/quotes/similar', async (req, res) => {
 
     const matches = await searchSimilarQuotes({ folder, quote: q, limit });
 
+    logger.info('quote_search.response', {
+      media: m,
+      cache_key: key,
+      rebuilt,
+      matches: matches.length,
+    });
     res.json({
       status: 'success',
       media: m,
@@ -252,6 +310,7 @@ app.get('/api/quotes/similar', async (req, res) => {
   } catch (e) {
     console.error('Quote search error:', e);
     const message = e instanceof Error ? e.message : String(e);
+    logger.error('quote_search.error', { media: String(media ?? ''), quote: String(quote ?? ''), message });
     res.status(500).json({ detail: message });
   }
 });
@@ -259,4 +318,5 @@ app.get('/api/quotes/similar', async (req, res) => {
 const PORT = Number(process.env.PORT) || 8000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Subtitle API listening on http://0.0.0.0:${PORT}`);
+  logger.info('server.started', { port: PORT });
 });
