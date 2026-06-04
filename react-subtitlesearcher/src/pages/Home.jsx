@@ -1,90 +1,134 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
-const logos = ['Framebase', 'Logipsum', 'SceneKit', 'Captionly', 'LineLabs'];
+const trendingSearches = ['Interstellar', 'Breaking Bad', 'The Office', 'Oppenheimer', 'Game of Thrones'];
 
-const features = [
-  {
-    icon: 'S',
-    title: 'Movie name / show name',
-    description: 'Here to display movie / show clips',
-  },
-  {
-    icon: 'Q',
-    title: 'Movie name / show name',
-    description: 'Here to display movie / show clips',
-  },
-  {
-    icon: 'T',
-    title: 'Movie name / show name',
-    description: 'Here to display movie / show clips',
-  },
-  {
-    icon: 'L',
-    title: 'Movie name / show name',
-    description: 'Here to display movie / show clips',
-  },
-];
+const featuredMovie = {
+  id: 'oppenheimer',
+  title: 'Oppenheimer',
+  year: '2023',
+  rating: '8.3',
+  genres: ['Biography', 'Drama', 'History'],
+  description:
+    'A dense, dialogue-driven portrait of ambition, consequence, and the race to build a world-changing weapon.',
+  poster: 'https://image.tmdb.org/t/p/original/fm6KqXpk3M2HVveHwCrBSSBaO0V.jpg',
+  fallbackPoster: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1800&q=80',
+};
 
-const lineRows = ['01', '02', '03', '04'];
-
-function Navbar() {
+function EmptyState({ title = 'No results found.' }) {
   return (
-    <header className="home-navbar">
-      <Link className="home-brand" to="/">Area</Link>
-      <nav className="home-nav-links" aria-label="Homepage navigation">
+    <div className="empty-state" role="status">
+      <h3>{title}</h3>
+      <p>Try checking spelling, shortening the quote, or searching a broader title.</p>
+    </div>
+  );
+}
+
+function LandingHeader() {
+  return (
+    <header className="landing-navbar">
+      <Link className="landing-brand" to="/">Area</Link>
+      <nav className="landing-nav-links" aria-label="Landing page navigation">
         <a href="#quote">Search a Line</a>
         <a href="#find-subtitle">Find Subtitle</a>
         <Link to="/about">About</Link>
       </nav>
-      <a className="home-button home-button-small" href="#connect">Learn More +</a>
+      <a className="landing-cta" href="#connect">Learn More ↗</a>
     </header>
   );
 }
 
-function HeroSection() {
+function FigmaHero() {
+  const [query, setQuery] = useState('');
+  const [active, setActive] = useState(false);
+  const inputRef = useRef(null);
+  const navigate = useNavigate();
+
+  const activate = () => {
+    setActive(true);
+    window.requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const submitSearch = (value = query) => {
+    const cleanQuery = value.trim();
+    if (cleanQuery) {
+      navigate(`/results/shows?query=${encodeURIComponent(cleanQuery)}`);
+    }
+  };
+
+  const handleTrending = (value) => {
+    setQuery(value);
+    setActive(true);
+    submitSearch(value);
+  };
+
   return (
-    <section className="home-hero" aria-labelledby="home-title">
-      <h1 id="home-title">Your Subtitle Crew.</h1>
-      <div className="hero-media-wrap">
-        <div className="hero-accent-block" aria-hidden="true" />
-        <div className="hero-media-card">
+    <section className="figma-hero" aria-labelledby="hero-title">
+      <h1 id="hero-title">Your Subtitle Crew.</h1>
+
+      <div className="figma-display-wrap">
+        <div className="figma-green-block" aria-hidden="true" />
+        <div className="figma-display-card">
           <img
-            src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80"
-            alt="Rolling green hills under a blue sky"
+            src="https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1800&q=80"
+            alt="Cinematic theater screen with film reels"
           />
-          <div className="hero-media-overlay">
-            <span>Reports / Overview</span>
-            <strong>78%</strong>
-            <p>Efficiency Improvements</p>
+          <div className="figma-display-overlay">
+            <p>Subtitle Discovery</p>
+            <strong>Search lines,<br />scenes, and tracks</strong>
           </div>
-          <div className="hero-chart" aria-hidden="true">
-            {Array.from({ length: 13 }).map((_, index) => (
-              <span key={index} style={{ '--bar-height': `${30 + (index % 6) * 12}px` }} />
-            ))}
-          </div>
+          <form className={`figma-hero-search ${active || query ? 'is-active' : ''}`} onSubmit={(event) => {
+            event.preventDefault();
+            submitSearch();
+          }}>
+            <div
+              className="figma-search-shell"
+              onClick={activate}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') activate();
+              }}
+              role="button"
+              tabIndex={0}
+            >
+              {!active && !query ? (
+                <span>Search a Movie / Show</span>
+              ) : (
+                <>
+                  <span className="search-glyph" aria-hidden="true">⌕</span>
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    onBlur={() => !query && setActive(false)}
+                    placeholder="Search a Movie / Show"
+                    aria-label="Search a Movie or Show"
+                  />
+                </>
+              )}
+            </div>
+            <button className="landing-search-submit" type="submit" disabled={!query.trim()}>
+              Search ↗
+            </button>
+          </form>
         </div>
       </div>
-    </section>
-  );
-}
 
-function LogoStrip() {
-  return (
-    <section className="logo-strip" aria-label="API supported by">
-      <p>API supported by:</p>
-      <div className="logo-row">
-        {logos.map((logo) => (
-          <span key={logo}>{logo}</span>
+      <div className="landing-trending-row" aria-label="Trending searches">
+        <span>Trending searches</span>
+        {trendingSearches.map((term) => (
+          <button key={term} type="button" onClick={() => handleTrending(term)}>
+            {term}
+          </button>
         ))}
       </div>
     </section>
   );
 }
 
-function QuoteSection() {
-  const [media, setMedia] = useState('Star Wars');
-  const [quote, setQuote] = useState('May the Force be with you');
+function QuoteSearchSection() {
+  const [media, setMedia] = useState('');
+  const [quote, setQuote] = useState('');
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -97,9 +141,7 @@ function QuoteSection() {
 
     try {
       const response = await fetch(
-        `/api/quotes/similar?media=${encodeURIComponent(media)}&quote=${encodeURIComponent(
-          quote,
-        )}&limit=5`,
+        `/api/quotes/similar?media=${encodeURIComponent(media)}&quote=${encodeURIComponent(quote)}&limit=5`,
       );
 
       if (!response.ok) {
@@ -109,9 +151,7 @@ function QuoteSection() {
           const body = JSON.parse(text);
           detail = body.detail || detail;
         } catch {
-          if (text.trim()) {
-            detail = text;
-          }
+          if (text.trim()) detail = text;
         }
         throw new Error(detail);
       }
@@ -127,135 +167,120 @@ function QuoteSection() {
   }
 
   return (
-    <section className="quote-section" id="quote">
-      <p className="section-kicker">Search a Line</p>
-      <form className="quote-search-form" onSubmit={handleSearch}>
+    <section className="section-panel quote-panel" id="quote">
+      <div className="section-heading">
+        <p className="eyebrow">Quote Search</p>
+        <h2>What are you looking for?</h2>
+      </div>
+
+      <form className="unified-search-card" onSubmit={handleSearch}>
         <label>
-          Media
+          <span>Movie / Show</span>
           <input
             type="text"
             value={media}
             onChange={(event) => setMedia(event.target.value)}
-            placeholder="Star Wars"
+            placeholder="Search title"
           />
         </label>
         <label>
-          Quote
+          <span>Quote</span>
           <input
             type="text"
             value={quote}
             onChange={(event) => setQuote(event.target.value)}
-            placeholder="May the Force be with you"
+            placeholder="Search dialogue"
           />
         </label>
-        <button type="submit" disabled={loading || !quote.trim()}>
-          {loading ? 'Searching…' : 'Search Quote'}
+        <button className="button button-primary" type="submit" disabled={loading || !quote.trim()}>
+          {loading ? 'Searching...' : 'Search Quote'}
         </button>
       </form>
 
-      {error && <p className="muted-copy" style={{ color: 'var(--red)' }}>{error}</p>}
-
-      {results && (
-        <div className="quote-results">
-          <h3>Search Results</h3>
-          {results.length === 0 ? (
-            <p>No matches found.</p>
-          ) : (
-            <ul>
-              {results.map((match, index) => (
-                <li key={index}>
-                  <div>
-                    <strong>{match.text || 'No text available'}</strong>
-                  </div>
-                  <div>
-                    <small>
-                      {match.episode ? `Episode ${match.episode}` : 'Movie / show quote'}
-                      {match.timestamp_start ? ` • ${match.timestamp_start}` : ''}
-                      {match.timestamp_end ? ` - ${match.timestamp_end}` : ''}
-                    </small>
-                  </div>
-                  {typeof match.score === 'number' && (
-                    <div>
-                      <small>Similarity: {match.score.toFixed(3)}</small>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      <p className="muted-copy">Subtitle from subtitles.com</p>
-    </section>
-  );
-}
-
-function FeatureGrid() {
-  return (
-    <section className="feature-grid" aria-label="Featured subtitle tools">
-      {features.map((feature) => (
-        <article className="feature-item" key={feature.icon}>
-          <span className="feature-icon" aria-hidden="true">{feature.icon}</span>
-          <h3>{feature.title}</h3>
-          <p>{feature.description}</p>
-        </article>
-      ))}
-    </section>
-  );
-}
-
-function CinematicImageSection() {
-  return (
-    <section className="cinematic-section" aria-label="Cinematic subtitle still">
-      <img
-        src="https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1800&q=80"
-        alt="A warm cinematic view of film reels"
-      />
-    </section>
-  );
-}
-
-function LineAppearanceSection() {
-  return (
-    <section className="line-appearance-section">
-      <div className="line-appearance-copy">
-        <h2>Movie / Show Line Appearance</h2>
-        <p>The same quote appeared many times in the show / movie "name"</p>
-        <div className="line-table" aria-label="Line appearance times">
-          {lineRows.map((row) => (
-            <div className="line-table-row" key={row}>
-              <span>{row}</span>
-              <strong>Time - line</strong>
-            </div>
+      {error && <p className="error-copy">{error}</p>}
+      {loading && <div className="skeleton-list" aria-label="Loading quote results"><span /><span /><span /></div>}
+      {results && results.length === 0 && <EmptyState />}
+      {results && results.length > 0 && (
+        <div className="results-grid quote-results">
+          {results.map((match, index) => (
+            <article className="result-card" key={`${match.text || 'quote'}-${index}`}>
+              <p>{match.text || 'Subtitle line unavailable'}</p>
+              <small>
+                {match.episode ? `Episode ${match.episode}` : media || 'Movie / show quote'}
+                {match.timestamp_start ? ` · ${match.timestamp_start}` : ''}
+                {match.timestamp_end ? ` - ${match.timestamp_end}` : ''}
+              </small>
+              {typeof match.score === 'number' && <span>Similarity {match.score.toFixed(3)}</span>}
+            </article>
           ))}
         </div>
-        <a className="home-button home-button-pale" href="#find-subtitle">Discover More</a>
-      </div>
-      <div className="line-appearance-image">
-        <img
-          src="https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&fit=crop&w=1200&q=80"
-          alt="Minimal cream display podiums"
-        />
-      </div>
+      )}
     </section>
   );
 }
 
-function SearchSubtitleSection() {
+function FeaturedMovieSection({ onFindSubtitles }) {
+  const [posterSrc, setPosterSrc] = useState(featuredMovie.poster);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  const findSubtitles = () => {
+    onFindSubtitles(featuredMovie.title);
+    window.requestAnimationFrame(() => {
+      document.getElementById('find-subtitle')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
+  return (
+    <section className="featured-section" aria-labelledby="featured-title">
+      <p className="eyebrow">Featured Movie of the Day</p>
+      <article className={`featured-card ${imageLoaded ? 'has-image' : 'is-loading-image'}`}>
+        <img
+          src={posterSrc}
+          alt={`${featuredMovie.title} cinematic backdrop`}
+          onLoad={() => setImageLoaded(true)}
+          onError={() => {
+            if (posterSrc !== featuredMovie.fallbackPoster) {
+              setImageLoaded(false);
+              setPosterSrc(featuredMovie.fallbackPoster);
+            } else {
+              setImageLoaded(true);
+            }
+          }}
+        />
+        <div className="featured-overlay">
+          <div className="featured-content">
+            <h2 id="featured-title">{featuredMovie.title}</h2>
+            <p className="movie-meta">{featuredMovie.year} · IMDb {featuredMovie.rating}</p>
+            <div className="tag-row">
+              {featuredMovie.genres.map((genre) => <span key={genre}>{genre}</span>)}
+            </div>
+            <p>{featuredMovie.description}</p>
+          </div>
+          <div className="featured-actions">
+            <Link className="button button-light" to={`/media/${featuredMovie.id}`}>View Movie</Link>
+            <button className="button button-gold" type="button" onClick={findSubtitles}>
+              Find Subtitles
+            </button>
+          </div>
+        </div>
+      </article>
+    </section>
+  );
+}
+
+function SubtitleSearchSection({ searchSeed }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  async function handleSubtitleSearch(event) {
-    event.preventDefault();
+  const runSubtitleSearch = useCallback(async (queryToSearch) => {
     setLoading(true);
     setError('');
     setResults(null);
 
     try {
-      const response = await fetch(`/api/subtitles?query=${encodeURIComponent(searchQuery)}`);
+      const response = await fetch(`/api/subtitles?query=${encodeURIComponent(queryToSearch)}`);
 
       if (!response.ok) {
         const text = await response.text();
@@ -271,207 +296,90 @@ function SearchSubtitleSection() {
 
       const text = await response.text();
       const data = text ? JSON.parse(text) : {};
-      
-      const parsedResults = data.sample? [
-      {
-        title: data.query,
-        text: data.sample,
-        language: 'English'
-      }
-      ]: [];
-
+      const parsedResults = data.sample ? [{ title: data.query || queryToSearch, text: data.sample, language: 'English' }] : [];
       setResults(parsedResults);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    if (searchSeed) {
+      setSearchQuery(searchSeed);
+      runSubtitleSearch(searchSeed);
+    }
+  }, [runSubtitleSearch, searchSeed]);
+
+  async function handleSubtitleSearch(event) {
+    event.preventDefault();
+    runSubtitleSearch(searchQuery);
   }
 
   return (
-    <section className="search-subtitle-section" id="find-subtitle">
-      <div className="search-subtitle-topline">
-        <h2>Find Subtitle for a Show</h2>
-        <a className="home-button home-button-pale" href="#connect">Discover More</a>
+    <section className="section-panel subtitle-panel" id="find-subtitle">
+      <div className="section-heading">
+        <p className="eyebrow">Subtitle Locator</p>
+        <h2>Find subtitles for a movie or show.</h2>
       </div>
-      
-      <div className="search-subtitle-copy">
-        <h3>Search a Movie / Show</h3>
-        <p className="subtitle-label">Subtitle Locator</p>
-        <p>With our intuitive setup, you're up and running in minutes.</p>
 
-        <form onSubmit={handleSubtitleSearch} style={{ margin: '20px 0', display: 'flex', gap: '10px' }}>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="e.g., Inception, Breaking Bad..."
-            style={{ padding: '10px', flex: '1', borderRadius: '4px', border: '1px solid #ccc' }}
-          />
-          <button 
-            type="submit" 
-            className="home-button home-button-small" 
-            disabled={loading || !searchQuery.trim()}
-          >
-            {loading ? 'Searching...' : 'Search'}
-          </button>
-        </form>
+      <form className="inline-search" onSubmit={handleSubtitleSearch}>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="Inception, Breaking Bad, The Bear..."
+          aria-label="Movie or show title"
+        />
+        <button className="button button-primary" type="submit" disabled={loading || !searchQuery.trim()}>
+          {loading ? 'Searching...' : 'Search'}
+        </button>
+      </form>
 
-        {error && <p style={{ color: 'var(--red)', marginTop: '10px' }}>{error}</p>}
-
-        {results && (
-          <div className="subtitle-results" style={{ marginTop: '20px', textAlign: 'left' }}>
-        {results.length > 0 && (
-          <div style={{ marginBottom: '20px' }}>
-            <h4>Preview First 5 Subtitle Files</h4>
-
-            <ul
-              style={{
-                listStyle: 'none',
-                padding: 0,
-                marginBottom: '20px',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                overflow: 'hidden'
-              }}
-            >
-              {results.slice(0, 5).map((subtitle, index) => (
-                <li
-                  key={index}
-                  style={{
-                    padding: '12px',
-                    borderBottom: index !== 4 ? '1px solid #eee' : 'none',
-                    background: '#fafafa'
-                  }}
-                >
-                  <strong>
-                    {subtitle.title ||
-                      subtitle.name ||
-                      `Subtitle File ${index + 1}`}
-                  </strong>
-
-                  {subtitle.language && (
-                    <span style={{ marginLeft: '8px', color: '#666' }}>
-                      ({subtitle.language})
-                    </span>
-                  )}
-
-                  {subtitle.episode && (
-                    <div style={{ fontSize: '0.85rem', color: '#888' }}>
-                      Episode: {subtitle.episode}
-                    </div>
-                  )}
-
-                  {subtitle.text && (
-                    <pre
-                      style={{
-                        marginTop: '10px',
-                        background: '#f4f4f4',
-                        padding: '10px',
-                        borderRadius: '4px',
-                        whiteSpace: 'pre-wrap',
-                        fontSize: '0.8rem',
-                        maxHeight: '120px',
-                        overflow: 'auto'
-                      }}
-                    >
-                      {subtitle.text.slice(0, 500)}
-                    </pre>
-                  )}
-                </li>
-              ))}
-            </ul>
-
+      {error && <p className="error-copy">{error}</p>}
+      {loading && <div className="skeleton-list"><span /><span /></div>}
+      {results && results.length === 0 && <EmptyState title="No subtitles found." />}
+      {results && results.length > 0 && (
+        <div className="subtitle-preview">
+          <div className="subtitle-preview-header">
+            <h3>Subtitle Preview</h3>
             <a
               href={`http://localhost:8000/api/media/subtitles.zip?query=${encodeURIComponent(searchQuery)}&languages=en`}
               download
-              className="home-button home-button-pale"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                textDecoration: 'none'
-              }}
+              className="button button-secondary"
             >
-              📥 Download ZIP After Preview
+              Download ZIP
             </a>
           </div>
-        )}
-
-            <h4>Available Subtitles</h4>
-            {results.length === 0 ? (
-              <p>No subtitles found for this title.</p>
-            ) : (
-              <ul style={{ listStyle: 'none', padding: 0 }}>
-                {results.map((subtitle, index) => (
-                  <li key={index} style={{ padding: '12px 0', borderBottom: '1px solid #eee' }}>
-                    <strong>{subtitle.title || subtitle.name || subtitle.text || 'Generic Subtitle Track'}</strong>
-                    {subtitle.language && <span> ({subtitle.language})</span>}
-                    {subtitle.episode && <small style={{ display: 'block', color: '#666' }}>Episode: {subtitle.episode}</small>}
-                    {subtitle.download_url && (
-                      <div style={{ marginTop: '4px' }}>
-                        <a href={subtitle.download_url} download style={{ color: 'blue', fontSize: '0.85rem', fontWeight: 'bold' }}>
-                          Download .SRT
-                        </a>
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-      </div>
-
-      <img
-        className="search-subtitle-image"
-        src="https://images.unsplash.com/photo-1574267432553-4b4628081c31?auto=format&fit=crop&w=1800&q=80"
-        alt="Projected movie scene in a theater"
-      />
+          {results.slice(0, 5).map((subtitle, index) => (
+            <article className="result-card" key={`${subtitle.title}-${index}`}>
+              <strong>{subtitle.title || subtitle.name || `Subtitle Track ${index + 1}`}</strong>
+              {subtitle.language && <small>{subtitle.language}</small>}
+              {subtitle.text && <pre>{subtitle.text.slice(0, 500)}</pre>}
+            </article>
+          ))}
+        </div>
+      )}
     </section>
-  );
-}
-
-function ContactSection() {
-  return (
-    <section className="contact-section" id="connect">
-      <h2>Connect with us</h2>
-      <p>Schedule a quick call to learn how Area can turn your regional data into a powerful advantage.</p>
-      <a className="home-button home-button-wide" href="/contact">Learn More +</a>
-    </section>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className="home-footer">
-      <nav aria-label="Footer navigation">
-        <a href="#quote">Benefits</a>
-        <a href="#find-subtitle">Specifications</a>
-        <a href="#connect">How-to</a>
-      </nav>
-      <div className="home-footer-bottom">
-        <div className="footer-mark" aria-hidden="true">A</div>
-        <p>&copy; Area. 2025</p>
-        <p>All Rights Reserved</p>
-      </div>
-    </footer>
   );
 }
 
 function Home() {
+  const [subtitleSeed, setSubtitleSeed] = useState('');
+
   return (
-    <div className="home-page">
-      <Navbar />
-      <HeroSection />
-      <LogoStrip />
-      <QuoteSection />
-      <FeatureGrid />
-      <CinematicImageSection />
-      <LineAppearanceSection />
-      <SearchSubtitleSection />
-      <ContactSection />
-      <Footer />
+    <div className="home-landing">
+      <LandingHeader />
+      <FigmaHero />
+      <FeaturedMovieSection onFindSubtitles={setSubtitleSeed} />
+      <QuoteSearchSection />
+      <SubtitleSearchSection searchSeed={subtitleSeed} />
+      <section className="landing-connect" id="connect">
+        <h2>Connect with us</h2>
+        <p>Learn how SubtitleSearcher turns scattered captions into fast, searchable movie moments.</p>
+        <Link className="landing-cta wide" to="/contact">Learn More ↗</Link>
+      </section>
     </div>
   );
 }

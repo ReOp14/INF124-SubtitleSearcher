@@ -21,7 +21,7 @@ function AppLayout() {
   return (
     <div className="app-container">
       {!isHome && <Header />}
-      <main className={isHome ? 'main-content home-main' : 'main-content'}>
+      <main className="main-content">
         <Routes>
           {/* i. Home */}
           <Route path="/" element={<Home />} />

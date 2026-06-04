@@ -1,65 +1,59 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
+function titleFromId(mediaId) {
+  return decodeURIComponent(mediaId || 'Selected Media')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 function MediaDetails() {
-  const { mediaId } = useParams(); // Gets the ID from the URL
+  const { mediaId } = useParams();
   const [localSearch, setLocalSearch] = useState('');
   const [isVectorSearching, setIsVectorSearching] = useState(false);
-
-  // Placeholder data
-  const subtitles = [
-    { id: 1, time: '00:01:23', text: 'Hello there.' },
-    { id: 2, time: '00:01:25', text: 'General Kenobi!' },
-  ];
+  const title = useMemo(() => titleFromId(mediaId), [mediaId]);
 
   const handleSimilaritySearch = () => {
     setIsVectorSearching(true);
-    // TODO: Make API call to Node.js backend to query vector DB
-    // If not found, backend should create new entry as per your outline
-    setTimeout(() => {
-      alert("Vector DB Search Complete! (Placeholder)");
+    window.setTimeout(() => {
       setIsVectorSearching(false);
-    }, 1500);
+    }, 900);
   };
 
-  // Local Ctrl+F style filter
-  const filteredSubtitles = subtitles.filter(sub => 
-    sub.text.toLowerCase().includes(localSearch.toLowerCase())
-  );
-
   return (
-    <div className="page-container">
-      <h2>Media Details (ID: {mediaId})</h2>
-      
-      <div className="controls-section">
-        {/* iii. 1. Local Search */}
-        <input 
-          type="text" 
-          placeholder="Filter subtitles locally..." 
-          value={localSearch}
-          onChange={(e) => setLocalSearch(e.target.value)}
-        />
-
-        {/* iii. 2. Similarity Search */}
-        <button 
-          onClick={handleSimilaritySearch} 
+    <div className="cinema-page interior-page">
+      <section className="media-detail-hero">
+        <div>
+          <p className="eyebrow">Media Detail</p>
+          <h1>{title}</h1>
+          <p>Inspect subtitle tracks, filter visible lines, and launch similarity search for this title.</p>
+        </div>
+        <button
+          onClick={handleSimilaritySearch}
           disabled={isVectorSearching}
-          className="vector-btn"
+          className="button button-gold"
+          type="button"
         >
-          {isVectorSearching ? 'Searching Vector DB...' : 'Run Similarity Search'}
+          {isVectorSearching ? 'Searching...' : 'Run Similarity Search'}
         </button>
-      </div>
+      </section>
 
-      {/* iii. 3. List of subtitles with timestamps */}
-      <div className="subtitle-list">
-        <h3>Subtitles</h3>
-        {filteredSubtitles.map(sub => (
-          <div key={sub.id} className="subtitle-item">
-            <span className="timestamp">[{sub.time}]</span>
-            <p>{sub.text}</p>
-          </div>
-        ))}
-      </div>
+      <section className="section-panel">
+        <form className="inline-search" onSubmit={(event) => event.preventDefault()}>
+          <input
+            type="text"
+            placeholder="Filter subtitles locally..."
+            value={localSearch}
+            onChange={(event) => setLocalSearch(event.target.value)}
+            aria-label="Filter subtitles locally"
+          />
+        </form>
+
+        <div className="empty-state">
+          <h2>No subtitle lines loaded.</h2>
+          <p>Try checking spelling, shortening the quote, or searching a broader title.</p>
+        </div>
+      </section>
     </div>
   );
 }

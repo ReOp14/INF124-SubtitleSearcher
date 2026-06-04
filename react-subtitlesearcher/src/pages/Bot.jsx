@@ -1,51 +1,69 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
+
+const prompts = [
+  'Find the scene where Walter White says...',
+  "Show me every use of 'Winter is Coming'",
+  'Find similar movie quotes',
+  'Search subtitles for a courtroom monologue',
+];
+
+const plannedFeatures = [
+  'Quote search assistance',
+  'Scene discovery',
+  'Subtitle recommendations',
+  'Show recommendations',
+];
 
 function Bot() {
-  const messages = useMemo(
-    () => [
-      'Scanning for crawlers...',
-      'Indexing subtitles...',
-      'Allocating memory...',
-      'Consuming memory...',
-      'Recursing loop...',
-    ],
-    []
-  );
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setTick((currentTick) => currentTick + 1);
-    }, 700);
-
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const message = messages[tick % messages.length];
-  const fakeMemory = 128 + ((tick * 73) % 896);
-  const progress = ((tick % 12) + 1) * 8;
-
   return (
-    <div className="page-container bot-page">
-      <div className="bot-panel" aria-live="polite">
-        <p className="bot-kicker">/bot</p>
-        <h1>Bot loop engaged</h1>
-        <p className="bot-copy">
-          All bots welcome. But it eats your memory
-        </p>
-
-        <div className="bot-terminal">
-          <div className="bot-terminal-row">
-            <span className="bot-prompt">&gt;</span>
-            <span>{message}</span>
-            <span className="bot-cursor" aria-hidden="true" />
+    <div className="cinema-page interior-page">
+      <section className="bot-hero-card">
+        <div>
+          <p className="coming-soon-badge">Coming Soon</p>
+          <p className="eyebrow">Subtitle AI Assistant</p>
+          <h1>Ask the subtitle bot.</h1>
+          <p>
+            A future assistant for exploring quotes, scenes, recommendations, and subtitle search ideas from one
+            focused command surface.
+          </p>
+          <div className="bot-capabilities">
+            <span>Find quotes</span>
+            <span>Find scenes</span>
+            <span>Recommend shows</span>
+            <span>Search subtitles</span>
           </div>
-          <div className="bot-meter" aria-label={`Pretend memory meter at ${progress} percent`}>
-            <span style={{ width: `${progress}%` }} />
-          </div>
-          <p className="bot-stat">Memory_Consumption={fakeMemory}MB loop_count={tick}</p>
         </div>
-      </div>
+        <div className="roadmap-card">
+          <p className="eyebrow">Subtitle AI Assistant</p>
+          <h2>Status: Coming Soon</h2>
+          <div className="roadmap-list" aria-label="Planned features">
+            {plannedFeatures.map((feature) => (
+              <div className="roadmap-row" key={feature}>
+                <span aria-hidden="true">+</span>
+                <p>{feature}</p>
+              </div>
+            ))}
+          </div>
+          <p className="roadmap-release">Expected Availability: Future Release</p>
+          <button className="button button-secondary" type="button" disabled>
+            Notify Me When Available
+          </button>
+        </div>
+      </section>
+
+      <section className="section-panel">
+        <div className="section-heading">
+          <p className="eyebrow">Example Prompts</p>
+          <h2>Future prompt examples.</h2>
+        </div>
+        <div className="prompt-grid">
+          {prompts.map((prompt) => (
+            <article className="prompt-card" key={prompt}>
+              {prompt}
+            </article>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

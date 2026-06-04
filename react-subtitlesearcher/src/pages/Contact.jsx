@@ -5,43 +5,50 @@ const developers = [
     id: 1,
     name: 'Dasheng Yao',
     role: 'Fullstack Developer',
-    focus: 'Search experience',
+    focus: 'Search Systems',
     email: 'dashengy@uci.edu',
     phone: '(949) 590-0119',
-    status: 'Debugging',
-    response: 'Usually replies after one good console.log',
+    tags: ['Search', 'Frontend', 'Architecture'],
   },
   {
     id: 2,
     name: 'Tri Ta',
     role: 'Fullstack Developer',
-    focus: 'Frontend polish',
+    focus: 'Frontend Polish',
     email: 'tmta2@uci.edu',
     phone: '(949) 555-0102',
-    status: 'Designing',
-    response: 'Fastest on layout mysteries',
+    tags: ['React', 'UI', 'Responsive'],
   },
   {
     id: 3,
     name: 'Scott McCloskey',
     role: 'Fullstack Developer',
-    focus: 'Data flow',
+    focus: 'Data Flow',
     email: 'mcclosks@uci.edu',
     phone: '(949) 555-0103',
-    status: 'Reviewing',
-    response: 'Best for bug reports with steps',
+    tags: ['Backend', 'APIs', 'Testing'],
   },
   {
     id: 4,
     name: 'Nora Bukhamseen',
     role: 'Fullstack Developer',
-    focus: 'Product details',
+    focus: 'Product Details',
     email: 'Noraessam@uci.edu',
     phone: '(949) 555-0104',
-    status: 'Shipping',
-    response: 'Great for feature questions',
+    tags: ['Research', 'QA', 'Product'],
   },
 ];
+
+const supportSections = [
+  { title: 'Quick Contact', body: 'Reach the developer most aligned with your question.' },
+  { title: 'Project Support', body: 'Ask about setup, local search behavior, and subtitle indexing.' },
+  { title: 'Bug Report', body: 'Share what you searched, what happened, and what you expected.' },
+  { title: 'Feature Request', body: 'Suggest new quote, subtitle, or discovery workflows.' },
+];
+
+function initials(name) {
+  return name.split(' ').map((part) => part[0]).join('');
+}
 
 function Contact() {
   const [selectedFocus, setSelectedFocus] = useState('All');
@@ -50,47 +57,47 @@ function Contact() {
   const [activeDeveloperId, setActiveDeveloperId] = useState(developers[0].id);
   const [message, setMessage] = useState('');
 
-  const focusOptions = useMemo(
-    () => ['All', ...developers.map((developer) => developer.focus)],
-    []
-  );
-
+  const focusOptions = useMemo(() => ['All', ...developers.map((developer) => developer.focus)], []);
   const visibleDevelopers = developers.filter(
-    (developer) => selectedFocus === 'All' || developer.focus === selectedFocus
+    (developer) => selectedFocus === 'All' || developer.focus === selectedFocus,
   );
-
-  const activeDeveloper =
-    developers.find((developer) => developer.id === activeDeveloperId) || developers[0];
+  const activeDeveloper = developers.find((developer) => developer.id === activeDeveloperId) || developers[0];
 
   const copyContact = async (value, label) => {
     try {
       await navigator.clipboard.writeText(value);
-      setCopied(label);
-      window.setTimeout(() => setCopied(''), 1600);
+      setCopied(`${label} copied`);
     } catch {
       setCopied('Copy unavailable');
-      window.setTimeout(() => setCopied(''), 1600);
     }
+    window.setTimeout(() => setCopied(''), 1600);
   };
 
   return (
-    <div className="page-container contact-page">
+    <div className="cinema-page interior-page contact-page">
       <section className="contact-hero">
         <div>
-          <p className="contact-kicker">SubtitleSearcher support desk</p>
-          <h1>Ping the dev crew</h1>
+          <p className="eyebrow">Support Center</p>
+          <h1>Get help from the SubtitleSearcher team.</h1>
           <p>
-            Pick a developer, copy a fake contact, or draft a quick project note. These
-            contacts are placeholders for the INF 124 demo.
+            Route bugs, feature ideas, project questions, and subtitle search feedback to the right developer.
           </p>
         </div>
-
         <div className="contact-console" aria-live="polite">
           <span className="console-dot" />
-          <p>route: /contact</p>
+          <p>Active contact</p>
           <strong>{activeDeveloper.name}</strong>
-          <span>{activeDeveloper.status} | {activeDeveloper.focus}</span>
+          <span>{activeDeveloper.focus}</span>
         </div>
+      </section>
+
+      <section className="support-grid" aria-label="Support options">
+        {supportSections.map((section) => (
+          <article className="info-card" key={section.title}>
+            <h3>{section.title}</h3>
+            <p>{section.body}</p>
+          </article>
+        ))}
       </section>
 
       <section className="contact-toolbar" aria-label="Contact controls">
@@ -125,45 +132,29 @@ function Contact() {
         </div>
       </section>
 
-      <section className="developer-contact-grid">
+      <section className="profile-grid">
         {visibleDevelopers.map((developer) => {
           const contactValue = contactMode === 'email' ? developer.email : developer.phone;
 
           return (
             <article
               key={developer.id}
-              className={`developer-contact-card ${
-                activeDeveloperId === developer.id ? 'is-selected' : ''
-              }`}
+              className={`profile-card contact-profile ${activeDeveloperId === developer.id ? 'is-selected' : ''}`}
             >
-              <button
-                type="button"
-                className="card-select"
-                onClick={() => setActiveDeveloperId(developer.id)}
-              >
-                <span className="developer-avatar" aria-hidden="true">
-                  {developer.name
-                    .split(' ')
-                    .map((word) => word[0])
-                    .join('')}
-                </span>
+              <button type="button" className="profile-select" onClick={() => setActiveDeveloperId(developer.id)}>
+                <span className="developer-avatar" aria-hidden="true">{initials(developer.name)}</span>
                 <span>
                   <strong>{developer.name}</strong>
                   <small>{developer.role}</small>
                 </span>
               </button>
-
-              <div className="developer-meta">
-                <span>{developer.focus}</span>
-                <span>{developer.status}</span>
+              <div className="tag-row">
+                {developer.tags.map((tag) => <span key={tag}>{tag}</span>)}
               </div>
-
-              <p>{developer.response}</p>
-
               <button
                 type="button"
-                className="copy-contact"
-                onClick={() => copyContact(contactValue, `${developer.name} ${contactMode}`)}
+                className="button button-secondary"
+                onClick={() => copyContact(contactValue, developer.name)}
               >
                 Copy {contactMode === 'email' ? developer.email : developer.phone}
               </button>
@@ -174,27 +165,22 @@ function Contact() {
 
       <section className="contact-lab">
         <div>
-          <h2>Message lab</h2>
-          <p>
-            Draft a note for {activeDeveloper.name}. The preview updates as you type, so
-            the page feels alive without sending anything anywhere.
-          </p>
+          <p className="eyebrow">Message Draft</p>
+          <h2>Prepare a note for {activeDeveloper.name}.</h2>
           <textarea
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             maxLength="220"
-            placeholder="Example: Found a subtitle line that links to the wrong episode..."
+            placeholder="Example: Quote search returns the right line, but the timestamp looks off..."
           />
           <div className="message-tools">
             <span>{message.length}/220</span>
-            <button type="button" onClick={() => setMessage('')}>
-              Clear
-            </button>
+            <button type="button" onClick={() => setMessage('')}>Clear</button>
           </div>
         </div>
 
         <div className="message-preview">
-          <p className="contact-kicker">Preview</p>
+          <p className="eyebrow">Preview</p>
           <h3>To: {activeDeveloper.name}</h3>
           <p>{message || 'Your message preview will appear here.'}</p>
           <span>{copied || 'Ready to copy contact info'}</span>
