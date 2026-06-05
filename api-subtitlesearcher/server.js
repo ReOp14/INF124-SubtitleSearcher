@@ -5,6 +5,7 @@ import express from 'express';
 import { createOpenSubtitlesClient } from './lib/os-client.js';
 import { collectSubtitleFiles, safeFilenamePart } from './lib/media-subtitles.js';
 import { ensureQuoteIndex, searchSimilarQuotes } from './lib/quote-index.js';
+import authRoutes from './routes/authRoutes.js';
 import { createLogger } from './lib/logger.js';
 
 const RATE_LIMIT_DELAY_MS = Number(process.env.OS_RATE_LIMIT_DELAY_MS) || 2000;
@@ -58,6 +59,7 @@ const logger = createLogger({ app: 'api-subtitlesearcher' });
 
 const app = express();
 app.use(express.json());
+app.use('/api/auth', authRoutes);
 
 app.use((req, _res, next) => {
   logger.info('http.request', {
