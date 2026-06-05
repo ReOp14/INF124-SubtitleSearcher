@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const trendingSearches = ['Interstellar', 'Breaking Bad', 'The Office', 'Oppenheimer', 'Game of Thrones'];
 
@@ -25,6 +26,8 @@ function EmptyState({ title = 'No results found.' }) {
 }
 
 function LandingHeader() {
+  const { isAuthenticated, user } = useAuth();
+
   return (
     <header className="landing-navbar">
       <Link className="landing-brand" to="/">Area</Link>
@@ -33,7 +36,11 @@ function LandingHeader() {
         <a href="#find-subtitle">Find Subtitle</a>
         <Link to="/about">About</Link>
       </nav>
-      <a className="landing-cta" href="#connect">Learn More ↗</a>
+      {isAuthenticated ? (
+        <Link className="landing-cta" to="/account">{user?.username || 'Account'}</Link>
+      ) : (
+        <Link className="landing-cta" to="/login">Log In</Link>
+      )}
     </header>
   );
 }

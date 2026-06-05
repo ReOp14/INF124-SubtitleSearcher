@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import { AuthProvider } from './context/AuthContext';
 
 // Pages
 import Home from './pages/Home';
@@ -11,6 +12,8 @@ import LineSearchResults from './pages/LineSearchResults';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import Bot from './pages/Bot';
+import AuthPage from './pages/AuthPage';
+import Account from './pages/Account';
 
 import './styles.css'; // Global styles
 
@@ -39,6 +42,9 @@ function AppLayout() {
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/bot" element={<Bot />} />
+          <Route path="/login" element={<AuthPage mode="login" />} />
+          <Route path="/signup" element={<AuthPage mode="signup" />} />
+          <Route path="/account" element={<Account />} />
         </Routes>
       </main>
       {!isHome && <Footer />}
@@ -48,9 +54,11 @@ function AppLayout() {
 
 function App() {
   return (
-    <Router>
-      <AppLayout />
-    </Router>
+    <AuthProvider>
+      <Router>
+        <AppLayout />
+      </Router>
+    </AuthProvider>
   );
 }
 
