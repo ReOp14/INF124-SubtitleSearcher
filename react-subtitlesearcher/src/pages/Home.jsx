@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import DownloadZipButton from '../components/DownloadZipButton';
+import { apiUrl } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 
 const trendingSearches = ['Interstellar', 'Breaking Bad', 'The Office', 'Oppenheimer', 'Game of Thrones'];
@@ -148,7 +150,7 @@ function QuoteSearchSection() {
 
     try {
       const response = await fetch(
-        `/api/quotes/similar?media=${encodeURIComponent(media)}&quote=${encodeURIComponent(quote)}&limit=5`,
+        apiUrl(`/api/quotes/similar?media=${encodeURIComponent(media)}&quote=${encodeURIComponent(quote)}&limit=5`),
       );
 
       if (!response.ok) {
@@ -287,7 +289,7 @@ function SubtitleSearchSection({ searchSeed }) {
     setResults(null);
 
     try {
-      const response = await fetch(`/api/subtitles?query=${encodeURIComponent(queryToSearch)}`);
+      const response = await fetch(apiUrl(`/api/subtitles?query=${encodeURIComponent(queryToSearch)}`));
 
       if (!response.ok) {
         const text = await response.text();
@@ -351,13 +353,7 @@ function SubtitleSearchSection({ searchSeed }) {
         <div className="subtitle-preview">
           <div className="subtitle-preview-header">
             <h3>Subtitle Preview</h3>
-            <a
-              href={`http://localhost:8000/api/media/subtitles.zip?query=${encodeURIComponent(searchQuery)}&languages=en`}
-              download
-              className="button button-secondary"
-            >
-              Download ZIP
-            </a>
+            <DownloadZipButton query={searchQuery} />
           </div>
           {results.slice(0, 5).map((subtitle, index) => (
             <article className="result-card" key={`${subtitle.title}-${index}`}>

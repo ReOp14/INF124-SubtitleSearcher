@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { apiUrl } from '../config/api';
 
 const AUTH_STORAGE_KEY = 'subtitleSearcherAuth';
 const AuthContext = createContext(null);
@@ -13,7 +14,7 @@ function readStoredSession() {
 }
 
 async function authRequest(path, { token, body, method = 'GET' } = {}) {
-  const response = await fetch(`/api/auth${path}`, {
+  const response = await fetch(apiUrl(`/api/auth${path}`), {
     method,
     headers: {
       'Content-Type': 'application/json',

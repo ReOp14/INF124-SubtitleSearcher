@@ -1,15 +1,17 @@
 import 'dotenv/config';
 import archiver from 'archiver';
+import cors from 'cors';
 import express from 'express';
 
 import { createOpenSubtitlesClient } from './lib/os-client.js';
 import { collectSubtitleFiles, safeFilenamePart } from './lib/media-subtitles.js';
 import { ensureQuoteIndex, searchSimilarQuotes } from './lib/quote-index.js';
 import authRoutes from './routes/authRoutes.js';
+import connectDB from './config/db.js';
 import { createLogger } from './lib/logger.js';
 
 const RATE_LIMIT_DELAY_MS = Number(process.env.OS_RATE_LIMIT_DELAY_MS) || 2000;
-const MEDIA_SUBTITLE_MAX_FILES = Number(process.env.MEDIA_SUBTITLE_MAX_FILES) || 60;
+const MEDIA_SUBTITLE_MAX_FILES = Number(process.env.MEDIA_SUBTITLE_MAX_FILES) || 1;
 const QUOTE_SEARCH_MAX_FILES = Number(process.env.QUOTE_SEARCH_MAX_FILES) || 1;
 
 class RateLimitedQueue {
@@ -57,7 +59,23 @@ const requestQueue = new RateLimitedQueue(RATE_LIMIT_DELAY_MS);
 const osClient = createOpenSubtitlesClient(process.env, requestQueue);
 const logger = createLogger({ app: 'api-subtitlesearcher' });
 
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const app = express();
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
+    },
+  }),
+);
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 
@@ -318,6 +336,7 @@ app.get('/api/quotes/similar', async (req, res) => {
 });
 
 const PORT = Number(process.env.PORT) || 8000;
+await connectDB();
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Subtitle API listening on http://0.0.0.0:${PORT}`);
   logger.info('server.started', { port: PORT });

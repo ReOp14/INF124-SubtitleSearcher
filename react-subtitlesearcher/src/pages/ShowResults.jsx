@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import DownloadZipButton from '../components/DownloadZipButton';
+import { apiUrl } from '../config/api';
 
 function parseErrorPayload(text, fallback) {
   if (!text) return fallback;
@@ -22,7 +24,7 @@ function ShowResults() {
 
   const endpoint = useMemo(() => {
     if (!query.trim()) return '';
-    return `/api/subtitles?query=${encodeURIComponent(query.trim())}`;
+    return apiUrl(`/api/subtitles?query=${encodeURIComponent(query.trim())}`);
   }, [query]);
 
   useEffect(() => {
@@ -131,13 +133,7 @@ function ShowResults() {
                 <p className="eyebrow">Results Found</p>
                 <h2>{state.results.length} subtitle preview</h2>
               </div>
-              <a
-                href={`http://localhost:8000/api/media/subtitles.zip?query=${encodeURIComponent(query)}&languages=en`}
-                download
-                className="button button-secondary"
-              >
-                Download ZIP
-              </a>
+              <DownloadZipButton query={query} />
             </div>
             {state.results.map((result, index) => (
               <article className="result-card" key={`${result.title}-${index}`}>
